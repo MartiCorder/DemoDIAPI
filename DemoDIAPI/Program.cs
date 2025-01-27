@@ -91,7 +91,12 @@ static void Exercici2(SAPbobsCOM.Company company)
         try
         {
             Documents oInvoice = null;
-            string currentCardCode = customerGroup.Key;
+            oInvoice = (Documents)company.GetBusinessObject(BoObjectTypes.oInvoices);
+            var currentCardCode = customerGroup.Key;
+            oInvoice.CardCode = currentCardCode;
+
+            oInvoice.DocDate = DateTime.Today;
+
             bool isFirstLine = true;
 
             foreach (var line in customerGroup)
@@ -109,12 +114,7 @@ static void Exercici2(SAPbobsCOM.Company company)
                 recordSet.DoQuery(query);
 
                 try
-                {
-
-                    oInvoice = (Documents)company.GetBusinessObject(BoObjectTypes.oInvoices);
-                    oInvoice.CardCode = currentCardCode;
-                    oInvoice.DocDate = DateTime.Today;
-
+                {                 
                     // Afegir nova línia si no és la primera
                     if (!isFirstLine)
                     {
@@ -141,6 +141,7 @@ static void Exercici2(SAPbobsCOM.Company company)
                     }
 
                     oInvoice.Lines.Quantity = (double)line.Quantity;
+                    oInvoice.Lines.UoMEntry = 1;
                     isFirstLine = false;
                 }
                 finally
