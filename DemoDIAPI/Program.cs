@@ -84,20 +84,22 @@ static void Exercici2(SAPbobsCOM.Company company)
 {
     var reader = new ExcelReader2();
     var excelDataList = reader.ReadExcelFile(@"C:\Users\mcorder\source\repos\DemoDIAPI\DemoDIAPI\ExelData\Facturas.xlsx");
+    
     var groupedLines = excelDataList.GroupBy(l => l.CardCode);
 
     foreach (var customerGroup in groupedLines)
     {
         try
         {
-            Documents oInvoice = null;
-            oInvoice = (Documents)company.GetBusinessObject(BoObjectTypes.oInvoices);
+            Documents oInvoice = (Documents)company.GetBusinessObject(BoObjectTypes.oInvoices);
             var currentCardCode = customerGroup.Key;
             oInvoice.CardCode = currentCardCode;
-
             oInvoice.DocDate = DateTime.Today;
 
             bool isFirstLine = true;
+
+            //Creem diccionari per controlar si ja hem usat la linia de la comanda
+            var lineTracking = new Dictionary<(int DocEntry, int LineNum), double>();
 
             foreach (var line in customerGroup)
             {
@@ -114,20 +116,30 @@ static void Exercici2(SAPbobsCOM.Company company)
                 recordSet.DoQuery(query);
 
                 try
-                {                 
-                    // Afegir nova línia si no és la primera
-                    if (!isFirstLine)
-                    {
+                {
+                    if (!isFirstLine)//Si no es la primera linia de la factura n'afegim una
                         oInvoice.Lines.Add();
-                    }
 
                     if (!recordSet.EoF)
                     {
-                        // Existeix comanda oberta
                         int docEntry = Convert.ToInt32(recordSet.Fields.Item("DocEntry").Value);
                         int lineNum = Convert.ToInt32(recordSet.Fields.Item("LineNum").Value);
+                        double openQty = Convert.ToDouble(recordSet.Fields.Item("OpenQty").Value);
 
-                        Console.WriteLine($"Client {currentCardCode}: Trobada comanda {docEntry}, línia {lineNum} per article {line.ItemCode}");
+                        if (lineTracking.TryGetValue((docEntry, lineNum), out var usedQty))
+                        {
+                            if (usedQty + line.Quantity <= openQty) //Sumem quantitatUsada + quantitatNova per veure si hi ha prou openQty
+                                lineTracking[(docEntry, lineNum)] += line.Quantity;
+                            else
+                                continue;
+                        }
+                        else
+                        {
+                            if (line.Quantity <= openQty)
+                                lineTracking[(docEntry, lineNum)] = line.Quantity;
+                            else
+                                continue;
+                        }
 
                         oInvoice.Lines.BaseEntry = docEntry;
                         oInvoice.Lines.BaseLine = lineNum;
@@ -135,12 +147,11 @@ static void Exercici2(SAPbobsCOM.Company company)
                     }
                     else
                     {
-                        // No existeix comanda, crear línia normal
-                        Console.WriteLine($"Client {currentCardCode}: No trobada comanda per article {line.ItemCode}");
+                        Console.WriteLine($"No open entry found for item {line.ItemCode}. Adding line directly.");
                         oInvoice.Lines.ItemCode = line.ItemCode;
                     }
 
-                    oInvoice.Lines.Quantity = (double)line.Quantity;
+                    oInvoice.Lines.Quantity = line.Quantity;
                     oInvoice.Lines.UoMEntry = 1;
                     isFirstLine = false;
                 }
@@ -150,30 +161,14 @@ static void Exercici2(SAPbobsCOM.Company company)
                 }
             }
 
-            // Crear la factura
-            if (oInvoice != null)
-            {
-                try
-                {
-                    if (oInvoice.Add() == 0)
-                    {
-                        Console.WriteLine($"Factura creada correctament per client {currentCardCode}");
-                    }
-                    else
-                    {
-                        string error = company.GetLastErrorDescription();
-                        Console.WriteLine($"Error creant factura per client {currentCardCode}: {error}");
-                    }
-                }
-                finally
-                {
-                    Utilities.Release(oInvoice);
-                }
-            }
+            if (oInvoice.Add() == 0)
+                Console.WriteLine($"Invoice successfully created for client {currentCardCode}");
+            else
+                Console.WriteLine($"Error creating invoice for client {currentCardCode}: {company.GetLastErrorDescription()}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error processant client {customerGroup.Key}: {ex.Message}");
+            Console.WriteLine($"Error processing client {customerGroup.Key}: {ex.Message}");
         }
     }
 }

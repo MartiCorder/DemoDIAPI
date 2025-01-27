@@ -21,7 +21,7 @@ namespace DemoDIAPI.Classes
         public string ItemName { get; set; }
         public string ItemGroup { get; set; }
         //Prices
-        public decimal Quantity { get; set; }
+        public double Quantity { get; set; }
         public decimal Price { get; set; }
         public decimal Discount { get; set; }
 
@@ -58,7 +58,7 @@ namespace DemoDIAPI.Classes
                             ItemCode = row.Cell(7).GetString(),
                             ItemName = row.Cell(8).GetString(),
                             ItemGroup = row.Cell(9).GetString(),
-                            Quantity = decimal.Parse(row.Cell(10).GetString().Replace(",", ".")),
+                            Quantity = double.Parse(row.Cell(10).GetString().Replace(",", ".")),
                             Price = decimal.Parse(row.Cell(11).GetString().Replace(",", ".")),
                             Discount = decimal.Parse(row.Cell(12).GetString().Replace(",", "."))
                         };
@@ -94,7 +94,7 @@ namespace DemoDIAPI.Classes
                         {
                             CardCode = row.Cell(1).GetString(),
                             ItemCode = row.Cell(2).GetString(),
-                            Quantity = decimal.Parse(row.Cell(3).GetString().Replace(",", "."))
+                            Quantity = double.Parse(row.Cell(3).GetString().Replace(",", ".")),
                         };
                         orders.Add(order);
                     }
